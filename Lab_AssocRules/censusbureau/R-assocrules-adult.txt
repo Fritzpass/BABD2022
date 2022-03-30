@@ -1,0 +1,83 @@
+library("arules")
+library("arulesViz")
+
+#Read the dataset in data.frame format
+data("AdultUCI")
+
+#Remove useless fields
+AdultUCI[["fnlwgt"]] <- NULL
+AdultUCI[["education-num"]] <- NULL
+
+#Convert numeric fields into categorical ones
+AdultUCI[["age"]] <- ordered(cut(AdultUCI[["age"]], c(15,25,45,65,100)),
+labels = c("Young", "Middle-Aged", "Senior", "Old"))
+
+AdultUCI[["hours-per-week"]] <- ordered(cut(AdultUCI[["hours-per-week"]],c(0,25,40,60,168)),
+labels = c("Part-time", "Full-time", "Over-time", "Workaholic"))
+
+AdultUCI[["capital-gain"]] <- ordered(cut(AdultUCI[["capital-gain"]],
+c(-Inf,0,median(AdultUCI[["capital-gain"]][AdultUCI[["capital-gain"]]>0]),Inf)),
+labels = c("None", "Low", "High"))
+
+AdultUCI[["capital-loss"]] <- ordered(cut(AdultUCI[["capital-loss"]],
+c(-Inf,0, median(AdultUCI[["capital-loss"]][AdultUCI[["capital-loss"]]>0]),Inf)), 
+labels = c("None", "Low", "High"))
+
+#Convert the dataset from data.frame format into transactions format
+Adult <- as(AdultUCI, "transactions")
+Adult
+inspect(Adult[3])
+Adult@itemInfo$labels
+
+
+#Lunch the Apriori Algorithm
+rules <- apriori(Adult,parameter=list(minlen=2, maxlen=5, support=0.001,confidence=0.5),control = list(verbose=F))
+
+#Let's inspect some of the best rules...and remove redundant ones
+rules.sorted <- sort(rules, by="lift")
+inspect(rules.sorted[1:20])
+rules <- (rules[!is.redundant(rules)])
+rules.sorted <- sort(rules, by="lift")
+inspect(rules.sorted[1:20])
+
+#Extract subsets of rules of interest
+#We could be interested in analysing rules with the consequence "income=large" or "income=small" 
+incomeLarge <- subset(rules,(rhs %in% paste0("income=large")))
+incomeSmall <- subset(rules,(rhs %in% paste0("income=small")))
+
+#Let's inspect the best 10 rules according to lift
+incomeLarge.sorted <- sort(incomeLarge, by="lift")
+inspect(incomeLarge.sorted[1:10])
+incomeSmall.sorted <- sort(incomeSmall, by="lift")
+inspect(incomeSmall.sorted[1:10])
+
+
+SCATTER PLOT AND TWO-KEY PLOT
+*************
+plot(incomeLarge,measure=c("support","confidence"),shading="lift",control=list(main="Scatter Plot"))
+plot(incomeLarge,shading="order",control=list(main = "Two-Key Plot"))
+	
+
+GRAPH-BASED VISUALIZATION
+*************
+plot(incomeLarge.sorted[1:5],method="graph",control=list(main = "Top 5 rules for 'Large Income'"))
+plot(incomeSmall.sorted[1:5],method="graph",control=list(main = "Top 5 rules for 'Small Income'"))
+
+
+PARALLEL-COORDINATES PLOT
+*************
+plot(incomeLarge.sorted[1:5], method="paracoord",control=list(reorder=TRUE, main = "Top 5 rules for 'Large Income'"))
+
+
+DOUBLE-DECKER PLOTS
+*************
+inspect(incomeLarge.sorted[1:1])
+plot(incomeLarge.sorted[1:1],method="doubledecker",data = Adult, control=list(main = "Double-Decker Plot"))
+inspect(incomeSmall.sorted[1:1])
+plot(incomeSmall.sorted[1:1],method="doubledecker",data = Adult, control=list(main = "Double-Decker Plot"))
+
+
+
+
+
+
